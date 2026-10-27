@@ -9,16 +9,28 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+                script {
+                    env.SKIP_BUILD = sh(
+                        script: 'git log -1 --pretty=%s',
+                        returnStdout: true
+                    ).trim().contains('[skip ci]') ? 'true' : 'false'
+                }
             }
         }
 
         stage('Build Image') {
+            when {
+                expression { env.SKIP_BUILD != 'true' }
+            }
             steps {
                 sh 'docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .'
             }
         }
 
         stage('Push Image') {
+            when {
+                expression { env.SKIP_BUILD != 'true' }
+            }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
@@ -35,6 +47,9 @@ pipeline {
         }
 
         stage('Update GitOps Manifest') {
+            when {
+                expression { env.SKIP_BUILD != 'true' }
+            }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'github-repo-creds',
