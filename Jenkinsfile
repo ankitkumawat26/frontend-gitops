@@ -28,9 +28,26 @@ pipeline {
                     sh '''
                         echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push "$DOCKER_IMAGE:$BUILD_NUMBER"
-                        docker tag "$DOCKER_IMAGE:$BUILD_NUMBER" "$DOCKER_IMAGE:latest"
-                        docker push "$DOCKER_IMAGE:latest"
                         docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Update GitOps Manifest') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-repo-creds',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_TOKEN'
+                )]) {
+                    sh '''
+                        sed -i "s|image: .*|image: $DOCKER_IMAGE:$BUILD_NUMBER|" k8s/deployment.yaml
+                        git config user.name "Jenkins"
+                        git config user.email "jenkins@localhost"
+                        git add k8s/deployment.yaml
+                        git commit -m "Update frontend image to build $BUILD_NUMBER [skip ci]" || true
+                        git -c http.extraheader="AUTHORIZATION: basic $(printf '%s:%s' "$GIT_USER" "$GIT_TOKEN" | base64 -w0)" push origin HEAD:main
                     '''
                 }
             }
