@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ankitkumawat2627/frontend-gitops:2
+          image: ankitkumawat2627/frontend-gitops:3
           ports:
             - containerPort: 80
